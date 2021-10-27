@@ -18,15 +18,8 @@ const sizes = {
 };
 
 const parameters = {
-  color: '#FFFFFF',
-  lightColor: '#ff04c7',
-  spin: () => {
-    gsap.to(sphere.rotation, {
-      duration: 1,
-      y: sphere.rotation.y + Math.PI,
-      x: sphere.rotation.y + Math.PI,
-    });
-  },
+  color: '#4bcc37',
+  lightColor: '#FFFFFF',
 };
 
 const aspectRatio = window.innerWidth / window.innerHeight;
@@ -38,33 +31,67 @@ scene = new THREE.Scene();
 **************/
 
 camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000);
-camera.position.z = 3;
+camera.position.z = 8;
+camera.position.y = 8;
+camera.position.x = 1;
+
+/**************
+::::::::: MATERIAL
+**************/
+const textureLoader = new THREE.TextureLoader();
+const matcapTexture = textureLoader.load('/matcap.png');
+
+const material = new THREE.MeshStandardMaterial({
+  color: parameters.color,
+  roughness: 0.6,
+  metalness: 0,
+});
 
 /**************
 ::::::::: MESHES
 **************/
 
-const material = new THREE.MeshStandardMaterial({
-  color: parameters.color,
-  metalness: 0.2,
-  roughness: 0.4,
-});
+const planeGeo = new THREE.PlaneGeometry(8, 8);
+const plane = new THREE.Mesh(
+  planeGeo,
+  new THREE.MeshStandardMaterial({ color: 0xffffff })
+);
+plane.rotation.x = -Math.PI * 0.5;
+plane.position.y = -1;
+plane.receiveShadow = true;
 
-const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), material);
-scene.add(sphere);
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
+cube.castShadow = true;
+
+scene.add(plane, cube);
 
 /**************
 :::::::: LIGHTS
 **************/
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-const pointLight = new THREE.PointLight(parameters.lightColor, 0.85);
+const directionalLight = new THREE.DirectionalLight(parameters.lightColor, 0.5);
 
-pointLight.position.x = 2;
-pointLight.position.y = 2;
-pointLight.position.z = 4;
+directionalLight.position.set(0.7, 1, 1.1);
 
-scene.add(ambientLight, pointLight);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 1024;
+directionalLight.shadow.mapSize.height = 1024;
+directionalLight.shadow.camera.near = 0;
+directionalLight.shadow.camera.far = 5;
+
+directionalLight.shadow.camera.top = 2;
+directionalLight.shadow.camera.left = 2;
+directionalLight.shadow.camera.right = -2;
+directionalLight.shadow.camera.bottom = -1;
+
+const directionalLightCameraHelper = new THREE.CameraHelper(
+  directionalLight.shadow.camera
+);
+
+directionalLightCameraHelper.visible = false;
+scene.add(directionalLightCameraHelper);
+scene.add(ambientLight, directionalLight);
 
 /**************
 ::::::::: RENDERER
@@ -75,6 +102,9 @@ renderer = new THREE.WebGLRenderer({
 });
 
 renderer.setSize(sizes.width, sizes.height);
+renderer.shadowMap.enabled = true;
+
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -88,7 +118,8 @@ const clock = new THREE.Clock();
 function animate() {
   const elapsedTime = clock.getElapsedTime();
 
-  pointLight.position.x = Math.sin(elapsedTime) * Math.PI * 2;
+  cube.rotation.y = 0.1 * elapsedTime;
+  cube.rotation.x = 0.15 * elapsedTime;
 
   controls.update;
   requestAnimationFrame(animate);
@@ -102,42 +133,31 @@ animate();
 **************/
 
 const gui = new dat.GUI();
-const pointLightFolder = gui.addFolder('pointLight');
-const sphereFolder = gui.addFolder('sphere');
 
-gui.add(parameters, 'spin');
+gui.add(ambientLight, 'intensity').min(0).max(1).step(0.01).name('A intensity');
+gui
+  .addColor(parameters, 'lightColor')
+  .onChange(() => {
+    directionalLight.color.set(parameters.lightColor);
+  })
+  .name('D color');
+gui
+  .add(directionalLight, 'intensity')
+  .min(0)
+  .max(1)
+  .step(0.01)
+  .name('D intensity');
 
-sphereFolder.addColor(parameters, 'color').onChange(() => {
+gui.add(directionalLight.position, 'x').min(-5).max(5).step(0.01);
+gui.add(directionalLight.position, 'y').min(-5).max(5).step(0.01);
+gui.add(directionalLight.position, 'z').min(-5).max(5).step(0.01);
+
+gui.add(material, 'roughness').min(0).max(1).step(0.01);
+gui.add(material, 'metalness').min(0).max(1).step(0.01);
+
+gui.addColor(parameters, 'color').onChange(() => {
   material.color.set(parameters.color);
 });
-sphereFolder.add(material, 'metalness').min(0).max(1).step(0.0001);
-sphereFolder.add(material, 'roughness').min(0).max(1).step(0.0001);
-sphereFolder.add(material, 'wireframe');
-
-pointLightFolder.addColor(parameters, 'lightColor').onChange(() => {
-  pointLight.color.set(parameters.lightColor);
-});
-
-pointLightFolder
-  .add(pointLight.position, 'y')
-  .min(-10)
-  .max(10)
-  .step(0.1)
-  .name('Height');
-
-pointLightFolder
-  .add(pointLight.position, 'x')
-  .min(-10)
-  .max(10)
-  .step(0.1)
-  .name('Position');
-
-pointLightFolder
-  .add(pointLight, 'intensity')
-  .min(0)
-  .max(3)
-  .step(0.01)
-  .name('Intensity');
 
 /**************
 ::::::::: RESPONSIVE
