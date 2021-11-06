@@ -47,11 +47,37 @@ const material = new THREE.MeshStandardMaterial({
 });
 
 /**************
-::::::::: MESHES
+::::::::: GALAXY
 **************/
 
-const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
-scene.add(cube);
+parameters.count = 1000;
+parameters.size = 0.02;
+
+const generateGalaxy = () => {
+	const geometry = new THREE.BufferGeometry();
+	const positions = new Float32Array(parameters.count * 3);
+
+	for (let i = 0; i < parameters.count; i++) {
+		const i3 = i * 3;
+		positions[i3] = (Math.random() - 0.5) * 3;
+		positions[i3 + 1] = (Math.random() - 0.5) * 3;
+		positions[i3 + 2] = (Math.random() - 0.5) * 3;
+	}
+
+	geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+	const material = new THREE.PointsMaterial({
+		size: parameters.size,
+		sizeAttenuation: true,
+		depthWrite: false,
+		blending: THREE.AdditiveBlending,
+	});
+
+	const points = new THREE.Points(geometry, material);
+	scene.add(points);
+};
+
+generateGalaxy();
 
 /**************
 :::::::: LIGHTS
@@ -97,14 +123,17 @@ animate();
 
 const gui = new dat.GUI();
 // gui.hide();
-
-gui.add(ambientLight, 'intensity').min(0).max(1).step(0.01).name('A intensity');
-gui.add(material, 'roughness').min(0).max(1).step(0.01);
-gui.add(material, 'metalness').min(0).max(1).step(0.01);
-
-gui.addColor(parameters, 'color').onChange(() => {
-	material.color.set(parameters.color);
-});
+gui.add(parameters, 'count')
+	.min(100)
+	.max(1000000)
+	.step(100)
+	.onFinishChange(generateGalaxy);
+gui.add(parameters, 'size')
+	.min(0.001)
+	.max(0.1)
+	.step(0.001)
+	.onFinishChange(generateGalaxy);
+gui.add(ambientLight, 'intensity').min(0).max(2).step(0.01).name('A intensity');
 
 /**************
 ::::::::: RESPONSIVE
